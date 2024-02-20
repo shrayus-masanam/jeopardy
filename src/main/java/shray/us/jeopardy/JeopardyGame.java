@@ -1,20 +1,22 @@
 package main.java.shray.us.jeopardy;
 
 import java.util.ArrayList;
-import org.bukkit.entity.Player;
+
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 
 public class JeopardyGame {
-    Player host;
-    ArrayList<Player> contestants;
-    boolean started = false;
+    private Player host;
+    private ArrayList<Player> contestants;
+    private boolean started = false;
 
     public JeopardyGame(Player sender, String[] args) {
         if (args.length < 3) {
             sender.sendMessage(ChatColor.RED + "Jepoardy requires 1 host and 2-3 contestants.\nUsage: /jeopardy create <host> <contestant 1> <contestant 2> ...");
             return;
         }
-        host = args[0];
+        host = Bukkit.getPlayerExact(args[0]);
         contestants = new ArrayList<Player>();
         for (int i = 1; i < args.length; i++) {
             Player contestant = Bukkit.getPlayerExact(args[i]);
