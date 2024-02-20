@@ -1,6 +1,10 @@
 name: 'Jeopardy'
-main: shray.us.jeopardy.Jeopardy
+main: main.java.shray.us.jeopardy.Jeopardy
 version: 1.0
-api-version: 1.20.1
+api-version: 1.20
 softdepend:
   - DecentHolograms
+commands:
+   jeopardy:
+      description: Jeopardy commands
+      usage: /jeopardy
