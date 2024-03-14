@@ -1,4 +1,4 @@
-package main.java.shray.us.jeopardy;
+package shray.us.jeopardy;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -22,6 +22,18 @@ public class MapImage extends MapRenderer {
             BufferedImage wide_image;
             wide_image = ImageIO.read(MapImage.class.getResourceAsStream("/shray/us/images/" + file_name));
             int width = wide_image.getWidth();
+            int height = wide_image.getHeight();
+            image = wide_image.getSubimage(width/portions*index, 0, width/portions, height); // the image is divided by vertical lines, and a portion is returned
+        } catch(IOException e) {
+            LOGGER.info(e.toString());
+        }
+    }
+    public MapImage(String file_name, int index) {
+        try {
+            BufferedImage wide_image;
+            wide_image = ImageIO.read(MapImage.class.getResourceAsStream("/shray/us/images/" + file_name));
+            int width = wide_image.getWidth();
+            int portions = (int)(width/128.0);
             int height = wide_image.getHeight();
             image = wide_image.getSubimage(width/portions*index, 0, width/portions, height); // the image is divided by vertical lines, and a portion is returned
         } catch(IOException e) {
