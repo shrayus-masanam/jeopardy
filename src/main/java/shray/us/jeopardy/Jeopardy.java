@@ -71,6 +71,12 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 				} else { // revealing a clue in a category
 					game.reveal_clue(args[2], args[3]);
 				}
+			} else if (args[1].equalsIgnoreCase("correct") || args[1].equalsIgnoreCase("incorrect")) {
+				if (args.length < 3) { // args[2] DNE
+					sender.sendMessage(ChatColor.RED + "You must specify a player index!");
+					return false;
+				}
+				game.change_contestant_money(Integer.parseInt(args[2]), args[1].equalsIgnoreCase("correct"));
 			}
 		} else if (args[0].equalsIgnoreCase("contestant")) {
 			// contestant commands

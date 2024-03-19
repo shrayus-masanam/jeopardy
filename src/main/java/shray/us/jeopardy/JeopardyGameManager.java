@@ -16,6 +16,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.checkerframework.checker.units.qual.A;
 
 public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
@@ -25,7 +26,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     private GameBoard game_board;
     JeopardyGame game;
     String current_round;
+    JeopardyClue current_clue;
     Logger logger = Logger.getLogger("Jeopardy");
+
 
     public JeopardyGameManager(Player sender, String[] args) {
         // args[1]: game file name (without extension)
@@ -69,6 +72,23 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         started = true;
         game_board.power_on();
         // play cutscene
+        //
+        // runnable
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < contestants.size(); i++) {
+                    int money = contestants.get(i).get_money();
+                    String money_text = "";
+                    if (money < 0) {
+                        money_text = ChatColor.RED + "-$" + Math.abs(money);
+                    } else {
+                        money_text = "$" + money;
+                    }
+                    game_board.set_money_display(i, money_text);
+                }
+            }
+        }.runTaskTimer(Jeopardy.getInstance(), 0L, 20L);
     }
     public void load(String round_name) {
         game_board.fill_board(round_name);
@@ -79,7 +99,20 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         game_board.set_cat_holo(idx, game.get_categories(current_round).get(idx).get_name());
     }
     public void reveal_clue(String cat_idx, String clue_idx) {
+        current_clue = game.get_clue(current_round, cat_idx, clue_idx);
+        current_clue.set_value(Integer.parseInt(clue_idx));
         game_board.set_contestant_cat_holo(game.get_categories(current_round).get(cat_idx).get_name());
-        game_board.set_contestant_clue_holo(game.get_clue(current_round, cat_idx, clue_idx).toString());
+        game_board.set_contestant_clue_holo(current_clue.toString());
+    }
+
+    public void hide_clue() {
+        game_board.set_contestant_cat_holo("");
+        game_board.set_contestant_clue_holo("");
+    }
+
+    // change their money based on the correctness of their response
+    public void change_contestant_money(int idx, boolean correct) {
+        contestants.get(idx).add_money(current_clue.get_value() * (correct ? 1 : -1));
+        if (correct) hide_clue();
     }
 }

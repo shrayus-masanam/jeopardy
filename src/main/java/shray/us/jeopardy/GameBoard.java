@@ -158,6 +158,7 @@ public class GameBoard {
         contestant_clue_display_bgs.add(cur_bg_2);
         contestant_clue_display_bgs.add(cur_bg_3);
         contestant_clue_display_bgs.add(cur_bg_4);
+
     }
     // Splits a string into lines of ideally 20 characters, but only splits at the next space
     // optional prefix/suffic to prepend/append to each line (like formatting codes)
@@ -280,7 +281,7 @@ public class GameBoard {
         DHAPI.setHologramLines(contestant_category_display, split_to_lines(text, "&n", ""));
         if (!text.isEmpty()) {
             for (Hologram bg : contestant_clue_display_bgs) {
-                DHAPI.setHologramLines(bg, Arrays.asList("<#000073>███████████████████</#000073>", "<#000073>███████████████████</#000073>", "<#000073>███████████████████</#000073>", "<#000073>███████████████████</#000073>", "<#000073>███████████████████</#000073>", "<#000073>███████████████████</#000073>", "<#000073>███████████████████</#000073>"));
+                DHAPI.setHologramLines(bg, Arrays.asList("<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>"));
             }
         } else {
             for (Hologram bg : contestant_clue_display_bgs) {
@@ -297,8 +298,12 @@ public class GameBoard {
 
     }
 
-
-    public World getWorld() {
-        return board_world;
+    public void set_money_display(int idx, String text) {
+        DHAPI.setHologramLines(money_displays.get(idx), split_to_lines(text));
     }
+
+
+    /*public World getWorld() {
+        return board_world;
+    }*/
 }
