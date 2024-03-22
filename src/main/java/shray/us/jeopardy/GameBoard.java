@@ -245,7 +245,7 @@ public class GameBoard {
         else
             reset_category_labels();
         for (Player plr : Bukkit.getOnlinePlayers()) {
-            plr.playSound(board_frames[board_frames.length/2][board_frames[0].length/2].getLocation(), "jeopardy.board.fill", 1.0F, 1.0F);
+            plr.playSound(plr.getLocation(), "jeopardy.board.fill", 1.0F, 1.0F);
         }
         int[] idx = new int[] { 0 };
         new BukkitRunnable() {
@@ -269,6 +269,11 @@ public class GameBoard {
                 idx[0] += 5;
             }
         }.runTaskTimer(Jeopardy.getInstance(), 0L, 7L);
+    }
+
+    public void set_tile(int cat_idx, int clue_idx, String tile_name) {
+        board_frames[clue_idx][cat_idx * 2].setItem(tiles.get(tile_name + "0").clone());
+        board_frames[clue_idx][cat_idx * 2 + 1].setItem(tiles.get(tile_name + "1").clone());
     }
 
     // set the text of a category hologram
@@ -303,7 +308,7 @@ public class GameBoard {
     }
 
 
-    /*public World getWorld() {
+    public World getWorld() {
         return board_world;
-    }*/
+    }
 }

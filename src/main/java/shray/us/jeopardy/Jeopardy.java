@@ -1,7 +1,6 @@
 package shray.us.jeopardy;
 
 import java.io.File;
-import java.net.http.WebSocket.Listener;
 import java.util.logging.Logger;
 
 import org.bukkit.ChatColor;
@@ -9,6 +8,12 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /*
@@ -23,7 +28,10 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 
 	//public String getDataFolder() { return this.instance.getDataFolder().getAbsolutePath().toString(); }
 
-	JeopardyGameManager game;
+	static JeopardyGameManager game;
+	public static JeopardyGameManager get_game_manager() {
+		return game;
+	}
 
 	public void onEnable() {
 		instance = this;
@@ -38,6 +46,7 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		getServer().getPluginManager().registerEvents(this, (Plugin)this);
 		LOGGER.info("Jeopardy enabled");
 	}
 
@@ -71,50 +80,37 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 				} else { // revealing a clue in a category
 					game.reveal_clue(args[2], args[3]);
 				}
+			} else if (args[1].equals("finishread") || args[1].equalsIgnoreCase("unfinishread")) {
+				game.set_finished_reading(args[1].equalsIgnoreCase("finishread"));
 			} else if (args[1].equalsIgnoreCase("correct") || args[1].equalsIgnoreCase("incorrect")) {
 				if (args.length < 3) { // args[2] DNE
 					sender.sendMessage(ChatColor.RED + "You must specify a player index!");
 					return false;
 				}
 				game.change_contestant_money(Integer.parseInt(args[2]), args[1].equalsIgnoreCase("correct"));
+			} else if (args[1].equalsIgnoreCase("timesup")) {
+				game.clue_timed_out();
 			}
 		} else if (args[0].equalsIgnoreCase("contestant")) {
 			// contestant commands
-			
-		}/* else if (args[0].equalsIgnoreCase("map")) {
-			// temporary command
-			MapView view = Bukkit.createMap(player.getWorld());
-			view.getRenderers().clear();
 
-			if (args[1].equals("blank.png")) {
-				MapImage image = new MapImage(args[1], 1, 0);
-				view.addRenderer(image);
-				ItemStack map = new ItemStack(Material.FILLED_MAP);
-				MapMeta meta = (MapMeta) (map.getItemMeta());
-				meta.setMapView(view);
-				map.setItemMeta(meta);
-				player.getInventory().addItem(map);
-				return true;
-			}
-
-			MapImage image = new MapImage(args[1], 2, 0);
-			view.addRenderer(image);
-			ItemStack map = new ItemStack(Material.FILLED_MAP);
-			MapMeta meta = (MapMeta)(map.getItemMeta());
-			meta.setMapView(view);
-			map.setItemMeta(meta);
-			player.getInventory().addItem(map);
-
-			image = new MapImage(args[1], 2, 1);
-			MapView view2 = Bukkit.createMap(player.getWorld());
-			view2.addRenderer(image);
-			ItemStack map2 = new ItemStack(Material.FILLED_MAP);
-			meta = (MapMeta) (map2.getItemMeta());
-			meta.setMapView(view2);
-			map2.setItemMeta(meta);
-			player.getInventory().addItem(map2);
-		} */
+		}
 		
 		return true;
+	}
+
+	@EventHandler(priority= EventPriority.HIGH)
+	public void onPlayerUse(PlayerInteractEvent event){
+		Player player = event.getPlayer();
+		if (player.getInventory().getItemInMainHand().getItemMeta().getDisplayName().equals("Buzzer")) {
+			game.buzz_in(player);
+		}
+	}
+
+	@EventHandler
+	public void invClickEvent(InventoryClickEvent event) {
+		if (event.getCurrentItem().getItemMeta().getDisplayName().equals("Buzzer")) {
+			event.setCancelled(true);
+		}
 	}
 }
