@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.logging.Logger;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -11,8 +12,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDropItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -70,7 +73,9 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 		}
 		else if (args[0].equalsIgnoreCase("host")) {
 			// host commands
-			if (args[1].equalsIgnoreCase("reveal")) {
+			if (args[1].equalsIgnoreCase("menu")) {
+				game.host_open_menu();
+			} else if (args[1].equalsIgnoreCase("reveal")) {
 				if (args.length < 3) { // args[2] DNE
 					sender.sendMessage(ChatColor.RED + "You must specify a category index!");
 					return false;
@@ -112,5 +117,21 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 		if (event.getCurrentItem().getItemMeta().getDisplayName().equals("Buzzer")) {
 			event.setCancelled(true);
 		}
+		if (event.getView().getTitle().contains("Jeopardy!")) {
+			game.host_click_menu(event);
+			event.setCancelled(true);
+		}
+	}
+
+	@EventHandler void itemDropEvent(EntityDropItemEvent event) {
+		ItemStack item = event.getItemDrop().getItemStack();
+		if (
+				item.getType() == Material.PAPER ||
+				item.getItemMeta().getDisplayName().equalsIgnoreCase("buzzer") ||
+				item.getType() == Material.WRITABLE_BOOK ||
+				item.getType() == Material.WRITTEN_BOOK ||
+				item.getType() == Material.PLAYER_HEAD
+		)
+			event.setCancelled(true);
 	}
 }

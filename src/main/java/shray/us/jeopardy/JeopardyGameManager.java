@@ -13,11 +13,12 @@ import eu.decentsoftware.holograms.api.DHAPI;
 import eu.decentsoftware.holograms.api.holograms.Hologram;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.checkerframework.checker.units.qual.A;
 
 public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
-    private Player host;
+    private JeopardyHost host;
     private ArrayList<JeopardyContestant> contestants;
     private boolean started = false;
     private GameBoard game_board;
@@ -53,7 +54,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             sender.sendMessage(ChatColor.RED + "Something went wrong when trying to load " + args[1] + ".json!");
         }
         game_board = new GameBoard(sender.getWorld(), 12, 13, 6, 12, 7, -4); // hardcoded
-        host = Bukkit.getPlayerExact(args[2]);
+        host = new JeopardyHost(Bukkit.getPlayerExact(args[2]), game);
         contestants = new ArrayList<JeopardyContestant>();
         for (int i = 3; i < args.length; i++) {
             Player contestant = Bukkit.getPlayerExact(args[i]);
@@ -115,6 +116,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         game_board.set_contestant_cat_holo(game.get_categories(current_round).get(cat_idx).get_name());
         game_board.set_contestant_clue_holo(current_clue.toString());
         game_board.set_tile(Integer.parseInt(cat_idx), Integer.parseInt(clue_idx)/200 * (current_round.equals("double") ? 2 : 1), "blank"); // we do not subtract 1 from the clue_idx because 0 is the category names row
+        current_clue.set_revealed(true);
     }
 
     public void hide_clue() {
@@ -137,24 +139,22 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             accepting_responses[2] = true;
         }
     }
+    // maybe buzzed in when they shouldnt be able to
+    public void dismiss_buzzed_in() {
+        buzzed_in = null;
+    }
     // nobody answered in time
     public void clue_timed_out() {
+        buzzed_in = null;
+        hide_clue();
+        current_clue = null;
+        finished_reading = false;
+        accepting_responses[0] = true;
+        accepting_responses[1] = true;
+        accepting_responses[2] = true;
         for (Player plr : Bukkit.getOnlinePlayers()) {
             plr.playSound(plr.getLocation(), "jeopardy.game.times_up", 1.0F, 1.0F);
         }
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                buzzed_in = null;
-                hide_clue();
-                current_clue = null;
-                finished_reading = false;
-                accepting_responses[0] = true;
-                accepting_responses[1] = true;
-                accepting_responses[2] = true;
-                cancel();
-            }
-        }.runTaskTimer(Jeopardy.getInstance(), 20L, 20L);
     }
 
     public void set_finished_reading(boolean val) {
@@ -178,7 +178,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 int idx = contestants.indexOf(contestant);
                 int buzz_status = can_buzz_in(contestant);
                 if (buzz_status == 0) {
-                    sender.sendMessage(ChatColor.RED + "You cannot buzz in right now.");
+                    //sender.sendMessage(ChatColor.RED + "You cannot buzz in right now.");
                 } else if (buzz_status == 1) {
                     sender.sendMessage(ChatColor.RED + "Responses are not being accepted right now!");
                     // time them out for 0.25 seconds
@@ -189,7 +189,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                     sender.sendMessage(ChatColor.GREEN + "You're up!");
                     sender.playSound(sender.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0F, 1.0F);
                     int[] plr_idx = {i};
-                    int[] time_left = {8};
+                    int[] time_left = {7};
                     //int[] ticks_passed = {0};
                     new BukkitRunnable() {
                         @Override public void run() {
@@ -200,7 +200,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                                 cancel();
                             }
                             if (time_left[0] <= 0) {
-                                //buzzed_in = null; // do not reset, the host needs to mark the player incorrect
+                                //buzzed_in = null; // do not reset, the host needs to mark the player incorrect/correct
                                 cancel();
                             }
                         }
@@ -210,4 +210,10 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             }
         };
     }
+
+    public void host_open_menu() {
+        host.open_menu(current_round);
+    }
+
+    public void host_click_menu(InventoryClickEvent event) {host.click_menu_item(event);}
 }

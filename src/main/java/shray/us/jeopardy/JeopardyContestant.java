@@ -36,7 +36,7 @@ public class JeopardyContestant {
         new BukkitRunnable() {
             @Override
             public void run() {
-                if (plr == null) cancel();
+                if (plr == null) return;
                 Inventory inv = plr.getInventory();
                 if (inv.getItem(0) == null || inv.getItem(0).getType() == Material.AIR || !(inv.getItem(0).getItemMeta().equals(buzzer_meta))) return;
                 int buzz_status = Jeopardy.get_game_manager().can_buzz_in(x[0]);
@@ -52,7 +52,7 @@ public class JeopardyContestant {
                         to_set = green_buzzer;
                         break;
                 }
-                if (!(inv.getItem(0).getType().equals(to_set.getType())))
+                if (!(inv.getItem(0).getType().equals(to_set.getType()))) // set if different
                     inv.setItem(0, to_set);
 
             }
