@@ -5,6 +5,7 @@ public class JeopardyClue {
     private String acceptable_responses;
 
     boolean daily_double;
+    boolean dd_revealed = false;
     boolean revealed = false;
     int value = 0; // filled in later
 

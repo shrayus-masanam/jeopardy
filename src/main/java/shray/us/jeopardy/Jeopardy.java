@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDropItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -60,8 +61,19 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 		if (!command.getName().equalsIgnoreCase("jeopardy") || args.length < 1) return false;
 		Player player = (Player)sender;
+
+		return command_handler(player, args);
+	}
+
+	public boolean command_handler(Player sender, String[] args) {
+		String out = sender.getDisplayName() + " issued command /jeopardy ";
+		for (String word : args) {
+			out += word + " ";
+		}
+		LOGGER.info(out);
+
 		if (args[0].equalsIgnoreCase("create")) {
-			game = new JeopardyGameManager(player, args);
+			game = new JeopardyGameManager(sender, args);
 			game.init();
 		}
 		else if (args[0].equalsIgnoreCase("start")) {
@@ -98,17 +110,26 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 			}
 		} else if (args[0].equalsIgnoreCase("contestant")) {
 			// contestant commands
+			if (args[1].equalsIgnoreCase("buzzin")) {
+				game.buzz_in(sender);
+			}
 
 		}
-		
 		return true;
 	}
 
 	@EventHandler(priority= EventPriority.HIGH)
 	public void onPlayerUse(PlayerInteractEvent event){
 		Player player = event.getPlayer();
-		if (player.getInventory().getItemInMainHand().getItemMeta().getDisplayName().equals("Buzzer")) {
-			game.buzz_in(player);
+		ItemStack item = player.getInventory().getItemInMainHand();
+		if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+			if (item.getItemMeta().getDisplayName().equals("Buzzer")) {
+				String[] args = {"contestant", "buzzin"};
+				command_handler(player, args);
+			} else if (item.getItemMeta().getDisplayName().contains("Host Menu")) {
+				String[] args = {"host", "menu"};
+				command_handler(player, args);
+			}
 		}
 	}
 
@@ -118,8 +139,8 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 			event.setCancelled(true);
 		}
 		if (event.getView().getTitle().contains("Jeopardy!")) {
-			game.host_click_menu(event);
 			event.setCancelled(true);
+			game.host_click_menu(event);
 		}
 	}
 

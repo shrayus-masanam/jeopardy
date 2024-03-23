@@ -58,6 +58,8 @@ public class JeopardyContestant {
             }
         }.runTaskTimer(Jeopardy.getInstance(), 0L, 1L);
     }
+    public JeopardyContestant() {} // for dummy objects
+
     public Player get_player() {
         return player;
     }

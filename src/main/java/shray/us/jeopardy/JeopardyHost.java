@@ -16,9 +16,17 @@ public class JeopardyHost {
     private Player player;
 
     private JeopardyGame game;
+
     public JeopardyHost(Player plr, JeopardyGame g) {
         player = plr;
         game = g;
+    }
+
+    public Player get_player() {
+        return player;
+    }
+    public void set_player(Player p) {
+        player = p;
     }
 
     public void give_host_menu() {
@@ -49,7 +57,6 @@ public class JeopardyHost {
                 items[i] = cat_button;
             } else { // clues
                 String clue_idx = String.valueOf(200 * row * (round.equalsIgnoreCase("double") ? 2 : 1));
-                player.sendMessage(i + ", " + clue_idx);
                 JeopardyClue clue = category.get_clue(clue_idx);
                 ItemStack clue_button;
                 if (clue.revealed) {
@@ -70,6 +77,23 @@ public class JeopardyHost {
     }
 
     public void click_menu_item(InventoryClickEvent event) {
-        
+        String round = event.getView().getTitle().split(" ")[0].toLowerCase();
+        int i = event.getSlot(); // slot clicked
+        int row = i / 9;
+        int col = i % 9;
+        if (col > 5) {
+            return;
+        }
+        JeopardyCategory category = game.get_categories(round).get(String.valueOf(col));
+        if (row == 0) { // category headers
+            String[] args = {"host", "reveal", String.valueOf(col)};
+            Jeopardy.getInstance().command_handler(player, args);
+            player.closeInventory();
+        } else { // clues
+            String clue_idx = String.valueOf(200 * row * (round.equalsIgnoreCase("double") ? 2 : 1));
+            String[] args = {"host", "reveal", String.valueOf(col), clue_idx};
+            Jeopardy.getInstance().command_handler(player, args);
+            player.closeInventory();
+        }
     }
 }

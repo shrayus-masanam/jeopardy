@@ -110,13 +110,48 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     public void reveal_category(String idx) {
         game_board.set_cat_holo(idx, game.get_categories(current_round).get(idx).get_name());
     }
-    public void reveal_clue(String cat_idx, String clue_idx) {
-        current_clue = game.get_clue(current_round, cat_idx, clue_idx);
-        current_clue.set_value(Integer.parseInt(clue_idx));
+
+    public void reveal_clue(String cat_idx, String clue_idx) { // wager is only used for daily double
+
+        JeopardyClue clue = game.get_clue(current_round, cat_idx, clue_idx);
+        // first set everything
+        finished_reading = false;
+        current_clue = clue;
+        game_board.set_tile(Integer.parseInt(cat_idx), Integer.parseInt(clue_idx)/200 * (current_round.equals("double") ? 2 : 1), "blank"); // we do not subtract 1 from the clue_idx because 0 is the category names row
+
+        if (clue.daily_double) {
+            if (!(clue.dd_revealed)) {
+                // play dd animation
+                game_board.set_contestant_cat_holo(game.get_categories(current_round).get(cat_idx).get_name());
+                game_board.set_contestant_clue_holo("&uDAILY DOUBLE&r");
+                for (Player plr : Bukkit.getOnlinePlayers()) {
+                    plr.playSound(plr.getLocation(), "jeopardy.board.daily_double", 1.0F, 1.0F);
+                }
+                clue.dd_revealed = true;
+                current_clue = null;
+                return;
+            } else {
+                // they'll be responding without buzzing in, so don't let anyone buzz in
+                accepting_responses[0] = false;
+                accepting_responses[1] = false;
+                accepting_responses[2] = false;
+                buzzed_in = new JeopardyContestant(); // set a dummy contestant to make the game think someone is buzzed in
+                clue.set_value(0);
+                host.get_player().sendMessage(ChatColor.BLUE + "After they answer, run " + ChatColor.YELLOW + "/jeopardy host addmoney <player index 0-2> <+/-wager>");
+                // then continue
+            }
+        } else {
+            // normal clue
+            accepting_responses[0] = true;
+            accepting_responses[1] = true;
+            accepting_responses[2] = true;
+            current_clue.set_value(Integer.parseInt(clue_idx));
+            // then continue
+        }
         game_board.set_contestant_cat_holo(game.get_categories(current_round).get(cat_idx).get_name());
         game_board.set_contestant_clue_holo(current_clue.toString());
-        game_board.set_tile(Integer.parseInt(cat_idx), Integer.parseInt(clue_idx)/200 * (current_round.equals("double") ? 2 : 1), "blank"); // we do not subtract 1 from the clue_idx because 0 is the category names row
         current_clue.set_revealed(true);
+        host.get_player().sendMessage(ChatColor.BLUE + "[Clue]: " + ChatColor.RESET + clue.toString() + ChatColor.RED + "\n[Response]: " + ChatColor.RESET + clue.get_acceptable_responses());
     }
 
     public void hide_clue() {
