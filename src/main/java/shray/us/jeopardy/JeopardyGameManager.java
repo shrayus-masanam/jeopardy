@@ -14,6 +14,9 @@ import eu.decentsoftware.holograms.api.holograms.Hologram;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.checkerframework.checker.units.qual.A;
 
@@ -28,9 +31,10 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     private boolean finished_reading = false;
     private JeopardyContestant buzzed_in = null;
     private boolean[] accepting_responses = new boolean[3];
-    Hologram[] buzzer_timers = new Hologram[3];
-    Logger logger = Logger.getLogger("Jeopardy");
+    private Hologram[] buzzer_timers = new Hologram[3];
 
+    private String[] final_jeopardy_responses = new String[3];
+    private Logger logger = Logger.getLogger("Jeopardy");
 
     public JeopardyGameManager(Player sender, String[] args) {
         // args[1]: game file name (without extension)
@@ -55,6 +59,8 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
         game_board = new GameBoard(sender.getWorld(), 12, 13, 6, 12, 7, -4); // hardcoded
         host = new JeopardyHost(Bukkit.getPlayerExact(args[2]), game);
+        host.give_host_menu();
+
         contestants = new ArrayList<JeopardyContestant>();
         for (int i = 3; i < args.length; i++) {
             Player contestant = Bukkit.getPlayerExact(args[i]);
@@ -73,7 +79,14 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             cont.get_player().sendMessage(ChatColor.GREEN + "Welcome to Jeopardy! Pick up your signaling device and get ready...");
             contestants.add(cont);
             accepting_responses[j] = true;
+
+            ItemStack money_changer = Utils.get_head(cont.get_player());
+            ItemMeta meta = money_changer.getItemMeta();
+            meta.setLore(Arrays.asList("Left click - give money (correct)", "Right click - take money (incorrect)", "Player index - " + j));
+            money_changer.setItemMeta(meta);
+            host.get_player().getInventory().addItem(money_changer);
         }
+
         sender.sendMessage(ChatColor.GREEN + "Created a game. Use /jeopardy start to begin!");
     }
 
@@ -103,6 +116,8 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }.runTaskTimer(Jeopardy.getInstance(), 0L, 20L);
     }
     public void load(String round_name) {
+        if (round_name.equalsIgnoreCase("final") || round_name.equalsIgnoreCase("tiebreaker"))
+            game_board.power_on(); // to clear the tiles
         game_board.fill_board(round_name);
         current_round = round_name;
     }
@@ -117,7 +132,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         // first set everything
         finished_reading = false;
         current_clue = clue;
-        game_board.set_tile(Integer.parseInt(cat_idx), Integer.parseInt(clue_idx)/200 * (current_round.equals("double") ? 2 : 1), "blank"); // we do not subtract 1 from the clue_idx because 0 is the category names row
+        game_board.set_tile(Integer.parseInt(cat_idx), Integer.parseInt(clue_idx)/(200 * (current_round.equals("double") ? 2 : 1)), "blank"); // we do not subtract 1 from the clue_idx because 0 is the category names row
 
         if (clue.daily_double) {
             if (!(clue.dd_revealed)) {
@@ -174,7 +189,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             accepting_responses[2] = true;
         }
     }
-    // maybe buzzed in when they shouldnt be able to
+    // maybe buzzed in when they shouldn't be able to
     public void dismiss_buzzed_in() {
         buzzed_in = null;
     }
@@ -251,4 +266,49 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     }
 
     public void host_click_menu(InventoryClickEvent event) {host.click_menu_item(event);}
+
+    public void give_book(String player_name, String book_name, int slot) {
+        if (player_name.equalsIgnoreCase("*")) {
+            for (JeopardyContestant c : contestants) {
+                give_book(c.get_player().getName(), book_name, slot);
+            }
+        }
+
+        for (JeopardyContestant c : contestants) {
+            if (c.get_player().getName().equalsIgnoreCase(player_name)) {
+                ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
+                ItemMeta meta = book.getItemMeta();
+                meta.setDisplayName(ChatColor.RESET + "" + ChatColor.YELLOW + c.get_player().getName() + "'s " + book_name);
+                book.setItemMeta(meta);
+                c.get_player().getInventory().setItem(slot, book);
+                break;
+            }
+        }
+    }
+    public void take_book(String player_name, int slot) {
+        if (player_name.equalsIgnoreCase("*")) {
+            for (JeopardyContestant c : contestants) {
+                take_book(c.get_player().getName(), slot);
+            }
+        }
+
+        for (JeopardyContestant c : contestants) {
+            if (c.get_player().getName().equalsIgnoreCase(player_name)) {
+                ItemStack book = c.get_player().getInventory().getItem(slot);
+                if (book.getType() != Material.WRITABLE_BOOK && book.getType() != Material.WRITTEN_BOOK) {
+                    host.get_player().sendMessage(ChatColor.RED + "Couldn't get a book from " + player_name);
+                    break;
+                }
+                if (slot == 2) { // fj response
+                    BookMeta meta2 = (BookMeta)(book.getItemMeta());
+                    String response = meta2.getPage(0);
+                    int idx = contestants.indexOf(c);
+                    final_jeopardy_responses[idx] = response;
+                }
+                host.get_player().getInventory().addItem(book);
+                c.get_player().getInventory().setItem(slot, new ItemStack(Material.AIR));
+                break;
+            }
+        }
+    }
 }

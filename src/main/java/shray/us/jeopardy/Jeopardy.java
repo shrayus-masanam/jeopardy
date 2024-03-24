@@ -16,7 +16,9 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDropItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerEditBookEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -107,6 +109,10 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 				game.change_contestant_money(Integer.parseInt(args[2]), args[1].equalsIgnoreCase("correct"));
 			} else if (args[1].equalsIgnoreCase("timesup")) {
 				game.clue_timed_out();
+			} else if (args[1].equalsIgnoreCase("givewager")) {
+				game.give_book(args[2], "Wager", 1);
+			} else if (args[1].equalsIgnoreCase("giveresponse")) {
+				game.give_book(args[2], "Final Jeopardy Response", 2);
 			}
 		} else if (args[0].equalsIgnoreCase("contestant")) {
 			// contestant commands
@@ -118,16 +124,36 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 		return true;
 	}
 
-	@EventHandler(priority= EventPriority.HIGH)
+	@EventHandler(priority = EventPriority.HIGH)
 	public void onPlayerUse(PlayerInteractEvent event){
 		Player player = event.getPlayer();
 		ItemStack item = player.getInventory().getItemInMainHand();
+		if (item.getType() == Material.PLAYER_HEAD) {
+			if (item.getItemMeta().getLore() != null && item.getItemMeta().getLore().get(2) != null) {
+				String loreline = item.getItemMeta().getLore().get(2);
+				if (loreline.split(" - ")[0].equalsIgnoreCase("Player index")) {
+					String giveortake = "";
+					Action eaction = event.getAction();
+					if (eaction == Action.RIGHT_CLICK_AIR || eaction == Action.RIGHT_CLICK_BLOCK)
+						giveortake = "incorrect";
+					else if (eaction == Action.LEFT_CLICK_AIR || eaction == Action.LEFT_CLICK_BLOCK)
+						giveortake = "correct";
+					String[] args = {"host", giveortake, loreline.split(" - ")[1]};
+					command_handler(player, args);
+				}
+			}
+		}
 		if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
 			if (item.getItemMeta().getDisplayName().equals("Buzzer")) {
 				String[] args = {"contestant", "buzzin"};
 				command_handler(player, args);
 			} else if (item.getItemMeta().getDisplayName().contains("Host Menu")) {
 				String[] args = {"host", "menu"};
+				command_handler(player, args);
+			}
+		} else if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
+			if (item.getItemMeta().getDisplayName().contains("Host Menu")) {
+				String[] args = {"host", "finishread"};
 				command_handler(player, args);
 			}
 		}
@@ -144,7 +170,8 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 		}
 	}
 
-	@EventHandler void itemDropEvent(EntityDropItemEvent event) {
+	@EventHandler
+	public void itemDropEvent(EntityDropItemEvent event) {
 		ItemStack item = event.getItemDrop().getItemStack();
 		if (
 				item.getType() == Material.PAPER ||
@@ -154,5 +181,15 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 				item.getType() == Material.PLAYER_HEAD
 		)
 			event.setCancelled(true);
+	}
+
+	@EventHandler
+	public void bookEditEvent(PlayerEditBookEvent event) {
+		if (event.getPreviousBookMeta().getDisplayName().contains("Wager") || event.getPreviousBookMeta().getDisplayName().contains("Final Jeopardy Response")) {
+			event.setSigning(false); // don't let them sign the book
+			BookMeta meta = event.getNewBookMeta();
+			meta.setDisplayName(event.getPreviousBookMeta().getDisplayName()); // don't let them change the name
+			event.setNewBookMeta(meta);
+		}
 	}
 }

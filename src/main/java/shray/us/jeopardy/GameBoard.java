@@ -211,8 +211,11 @@ public class GameBoard {
         for (Hologram cat : categories) {
             List<String> lines;
             if (!(round.equalsIgnoreCase(""))) {
+                String special_color = "fcba03";
+                if (round.equalsIgnoreCase("final") || round.equalsIgnoreCase("tiebreaker"))
+                    special_color = "ff8400";
                 lines = Arrays.asList(
-                        "<#fcba03>" + round.substring(0, 1).toUpperCase() + round.substring(1) + "</#fcba03>", // capitalizes first letter
+                        "<#" + special_color + ">" + round.substring(0, 1).toUpperCase() + round.substring(1) + "</#" + special_color + ">", // capitalizes first letter
                         "<#f0dbaf>Jeopardy!</#f7cdbc>"
                 );
             } else {
@@ -244,6 +247,9 @@ public class GameBoard {
             reset_category_labels(round_name);
         else
             reset_category_labels();
+        if (round_name.equalsIgnoreCase("final") || round_name.equalsIgnoreCase("tiebreaker")) {
+            return;
+        }
         for (Player plr : Bukkit.getOnlinePlayers()) {
             plr.playSound(plr.getLocation(), "jeopardy.board.fill", 1.0F, 1.0F);
         }

@@ -25,7 +25,7 @@ public class JeopardyContestant {
         if (buzzer_meta == null) {
             ItemMeta meta = gray_buzzer.getItemMeta();
             meta.setDisplayName(ChatColor.RESET + "Buzzer");
-            meta.setLore(Arrays.asList("Your signaling device to buzz in during Jeopardy!", "Green: responses open!", "Gray: responses not being accepted.", "Red: not allowed to buzz in."));
+            meta.setLore(Arrays.asList("Your signaling device to buzz in during Jeopardy!", "Green - responses open!", "Gray - responses not being accepted.", "Red - not allowed to buzz in."));
             //buzzer.setItemMeta(meta);
             buzzer_meta = meta;
             gray_buzzer.setItemMeta(buzzer_meta);
