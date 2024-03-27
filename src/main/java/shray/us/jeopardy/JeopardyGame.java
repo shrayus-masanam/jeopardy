@@ -18,13 +18,26 @@ public class JeopardyGame {
         }
     }
 
+    public JeopardyCategory get_category(String round) {
+        if (round.equalsIgnoreCase("final")) {
+            return final_jeopardy;
+        } else if (round.equalsIgnoreCase("tiebreaker")) {
+            return tie_breaker;
+        } else {
+            return null;
+        }
+    }
+
     public JeopardyClue get_clue(String round, String cat_idx, String clue_idx) {
         if (round.equalsIgnoreCase("single")) {
             return single_jeopardy.get(cat_idx).get_clue(clue_idx);
         } else if (round.equalsIgnoreCase("double")) {
             return double_jeopardy.get(cat_idx).get_clue(clue_idx);
-        } else {
-            return null;
+        } else if (round.equalsIgnoreCase("final")) {
+            return final_jeopardy.get_clue(clue_idx);
+        } else if (round.equalsIgnoreCase("tiebreaker")) {
+            return tie_breaker.get_clue(clue_idx);
         }
+        return null;
     }
 }

@@ -12,11 +12,14 @@ import com.google.gson.Gson;
 import eu.decentsoftware.holograms.api.DHAPI;
 import eu.decentsoftware.holograms.api.holograms.Hologram;
 import org.bukkit.*;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.checkerframework.checker.units.qual.A;
 
@@ -32,8 +35,10 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     private JeopardyContestant buzzed_in = null;
     private boolean[] accepting_responses = new boolean[3];
     private Hologram[] buzzer_timers = new Hologram[3];
-
+    private int[] wagers = new int[3];
     private String[] final_jeopardy_responses = new String[3];
+
+    ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
     private Logger logger = Logger.getLogger("Jeopardy");
 
     public JeopardyGameManager(Player sender, String[] args) {
@@ -59,8 +64,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
         game_board = new GameBoard(sender.getWorld(), 12, 13, 6, 12, 7, -4); // hardcoded
         host = new JeopardyHost(Bukkit.getPlayerExact(args[2]), game);
+        host.get_player().getInventory().clear();
         host.give_host_menu();
-
+        host.get_player().addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, 999999, 255, true, false));
         contestants = new ArrayList<JeopardyContestant>();
         for (int i = 3; i < args.length; i++) {
             Player contestant = Bukkit.getPlayerExact(args[i]);
@@ -68,6 +74,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 sender.sendMessage(ChatColor.RED + "Couldn't find the player \"" + args[i] + "\"");
                 return;
             }
+            contestant.getInventory().clear();
+            contestant.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, 999999, 255, true, false));
+
             int j = i - 3;
             Hologram timer = DHAPI.getHologram("jeopardy_contestant_timer_" + j);
             if (timer == null)
@@ -87,17 +96,27 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             host.get_player().getInventory().addItem(money_changer);
         }
 
-        sender.sendMessage(ChatColor.GREEN + "Created a game. Use /jeopardy start to begin!");
+        sender.sendMessage(ChatColor.GREEN + "Created a game with host " + ChatColor.YELLOW + host.get_player().getName() + ChatColor.GREEN + ". Use " + ChatColor.RESET + "/jeopardy start intro" + ChatColor.GREEN + " to begin!");
     }
 
     public void init() {
         game_board.black_out();
     }
+
     public void start() {
+        start(false);
+    }
+    public void start(boolean intro) {
         started = true;
         game_board.power_on();
         // play cutscene
-        //
+        if (intro) {
+            started = false; // we need this to be false so that we can run some commands during the intro, like showoff with player heads
+            host.get_player().addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 999999, 255, true, false));
+            for (Player plr : Bukkit.getOnlinePlayers()) {
+                Bukkit.dispatchCommand(console, "cinematic play intro " + plr.getName());
+            }
+        }
         // runnable
         new BukkitRunnable() {
             @Override
@@ -114,36 +133,65 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 }
             }
         }.runTaskTimer(Jeopardy.getInstance(), 0L, 20L);
+        // set the started field after 45 seconds
+        int[] time_left = {45};
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                started = true;
+                host.get_player().removePotionEffect(PotionEffectType.INVISIBILITY);
+                host.get_player().sendMessage(ChatColor.BLUE + "Intro is over.");
+                cancel();
+            }
+        }.runTaskTimer(Jeopardy.getInstance(), time_left[0] * 20L, 20L);
+        // give the host an indicator as to how much time they have left
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                host.get_player().sendMessage(ChatColor.YELLOW + "" + time_left[0] + ChatColor.BLUE + " seconds left in intro");
+                time_left[0]--;
+                if (time_left[0] <= 0 || started) cancel();
+            }
+        }.runTaskTimer(Jeopardy.getInstance(), 0L, 20L);
     }
     public void load(String round_name) {
         if (round_name.equalsIgnoreCase("final") || round_name.equalsIgnoreCase("tiebreaker"))
             game_board.power_on(); // to clear the tiles
         game_board.fill_board(round_name);
         current_round = round_name;
+        if (current_round.equalsIgnoreCase("single") || current_round.equalsIgnoreCase("tiebreaker"))
+            set_wall_color("blue");
+        else if (current_round.equalsIgnoreCase("double"))
+            set_wall_color("purple");
     }
 
     public void reveal_category(String idx) {
-        game_board.set_cat_holo(idx, game.get_categories(current_round).get(idx).get_name());
+        if (current_round.equalsIgnoreCase("single") || current_round.equalsIgnoreCase("double")) {
+            game_board.set_cat_holo(idx, game.get_categories(current_round).get(idx).get_name());
+        } else { // final and tiebreaker
+            reveal_clue(idx, "0");
+        }
     }
 
     public void reveal_clue(String cat_idx, String clue_idx) { // wager is only used for daily double
-
         JeopardyClue clue = game.get_clue(current_round, cat_idx, clue_idx);
         // first set everything
         finished_reading = false;
         current_clue = clue;
+        // blank out the tile
         game_board.set_tile(Integer.parseInt(cat_idx), Integer.parseInt(clue_idx)/(200 * (current_round.equals("double") ? 2 : 1)), "blank"); // we do not subtract 1 from the clue_idx because 0 is the category names row
 
-        if (clue.daily_double) {
-            if (!(clue.dd_revealed)) {
-                // play dd animation
-                game_board.set_contestant_cat_holo(game.get_categories(current_round).get(cat_idx).get_name());
-                game_board.set_contestant_clue_holo("&uDAILY DOUBLE&r");
+        if (current_round.equalsIgnoreCase("final") || current_round.equalsIgnoreCase("tiebreaker")) {
+            if (!(clue.cat_revealed)) {
+                // reveal category and play reveal sound
+                game_board.set_contestant_cat_holo(game.get_category(current_round).get_name());
+                game_board.set_contestant_clue_holo(" ");
                 for (Player plr : Bukkit.getOnlinePlayers()) {
-                    plr.playSound(plr.getLocation(), "jeopardy.board.daily_double", 1.0F, 1.0F);
+                    plr.playSound(plr.getLocation(), "jeopardy.board.clue_reveal", 1.0F, 1.0F);
                 }
-                clue.dd_revealed = true;
+                clue.cat_revealed = true;
                 current_clue = null;
+                host.get_player().sendMessage(ChatColor.BLUE + "Set their wagers using " + ChatColor.YELLOW + "/jeopady host setwager <name> <wager>");
                 return;
             } else {
                 // they'll be responding without buzzing in, so don't let anyone buzz in
@@ -152,7 +200,36 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 accepting_responses[2] = false;
                 buzzed_in = new JeopardyContestant(); // set a dummy contestant to make the game think someone is buzzed in
                 clue.set_value(0);
-                host.get_player().sendMessage(ChatColor.BLUE + "After they answer, run " + ChatColor.YELLOW + "/jeopardy host addmoney <player index 0-2> <+/-wager>");
+                //host.get_player().sendMessage(ChatColor.BLUE + "After revealing answers, run " + ChatColor.YELLOW + "/jeopardy host addmoney <player index 0-2> <+/-wager>");
+                for (Player plr : Bukkit.getOnlinePlayers()) {
+                    plr.playSound(plr.getLocation(), "jeopardy.board.clue_reveal", 1.0F, 1.0F);
+                }
+                game_board.set_contestant_cat_holo(game.get_category(current_round).get_name());
+                game_board.set_contestant_clue_holo(current_clue.toString());
+                current_clue.set_revealed(true);
+                host.get_player().sendMessage(ChatColor.BLUE + "[Clue]: " + ChatColor.RESET + clue.toString() + ChatColor.RED + "\n[Response]: " + ChatColor.RESET + clue.get_acceptable_responses());
+                return;
+            }
+        } else if (clue.daily_double) {
+            if (!(clue.cat_revealed)) {
+                // play dd animation
+                game_board.set_contestant_cat_holo(game.get_categories(current_round).get(cat_idx).get_name());
+                game_board.set_contestant_clue_holo("&uDAILY DOUBLE&r");
+                for (Player plr : Bukkit.getOnlinePlayers()) {
+                    plr.playSound(plr.getLocation(), "jeopardy.board.daily_double", 1.0F, 1.0F);
+                }
+                clue.cat_revealed = true;
+                current_clue = null;
+                host.get_player().sendMessage(ChatColor.BLUE + "Set their wager using " + ChatColor.YELLOW + "/jeopady host setwager <name> <wager>");
+                return;
+            } else {
+                // they'll be responding without buzzing in, so don't let anyone buzz in
+                accepting_responses[0] = false;
+                accepting_responses[1] = false;
+                accepting_responses[2] = false;
+                buzzed_in = new JeopardyContestant(); // set a dummy contestant to make the game think someone is buzzed in
+                clue.set_value(0);
+                //host.get_player().sendMessage(ChatColor.BLUE + "After they answer, run " + ChatColor.YELLOW + "/jeopardy host addmoney <player index 0-2> <+/-wager>");
                 // then continue
             }
         } else {
@@ -175,8 +252,29 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     }
 
     // change their money based on the correctness of their response
-    public void change_contestant_money(int idx, boolean correct) {
-        contestants.get(idx).add_money(current_clue.get_value() * (correct ? 1 : -1));
+    public void declare_correctness(int idx, boolean correct) {
+        if (!started) {  // use player heads as showoff instead during the intro
+            if (!correct) {
+                align_players();
+            } else {
+                align_players();
+                show_off(contestants.get(idx).get_player().getName());
+            }
+            return;
+        }
+        if (current_clue == null) return;
+        int addend = current_clue.get_value();
+        if (current_round.equalsIgnoreCase("final") || current_clue.daily_double)
+            addend = wagers[idx];
+        contestants.get(idx).add_money(addend * (correct ? 1 : -1));
+
+        String name = contestants.get(idx).get_player().getName();
+        if (addend * (correct ? 1 : -1) >= 0)
+            host.get_player().sendMessage(ChatColor.GREEN + "Added $" + addend + " to " + ChatColor.YELLOW + name);
+        else
+            host.get_player().sendMessage(ChatColor.RED + "Removed $" + Math.abs(addend) + " from " + ChatColor.YELLOW + name);
+
+        if (current_round.equalsIgnoreCase("final")) return; // stop here for final jeopardy
         buzzed_in = null;
         accepting_responses[idx] = false; // incorrect respondents cannot retry
         if (correct) {
@@ -189,7 +287,20 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             accepting_responses[2] = true;
         }
     }
-    // maybe buzzed in when they shouldn't be able to
+    // change their money by a value (pos or neg) (HOST USER-FACING COMMAND)
+    public void change_contestent_money(String name, int change) {
+        for (JeopardyContestant c : contestants) {
+            if (c.get_player().getName().equalsIgnoreCase(name)) {
+                c.add_money(change);
+                if (change >= 0)
+                    host.get_player().sendMessage(ChatColor.GREEN + "Added $" + change + " to " + ChatColor.YELLOW + name);
+                else
+                    host.get_player().sendMessage(ChatColor.RED + "Removed $" + Math.abs(change) + " from " + ChatColor.YELLOW + name);
+                return;
+            }
+        }
+    }
+    // unbuzz a player. maybe buzzed in when they shouldn't be able to
     public void dismiss_buzzed_in() {
         buzzed_in = null;
     }
@@ -237,9 +348,11 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 } else {
                     buzzed_in = contestants.get(i);
                     sender.sendMessage(ChatColor.GREEN + "You're up!");
+                    host.get_player().sendMessage(ChatColor.YELLOW + sender.getName() + ChatColor.BLUE + " buzzed in!");
                     sender.playSound(sender.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0F, 1.0F);
                     int[] plr_idx = {i};
                     int[] time_left = {7};
+                    DHAPI.setHologramLines(buzzer_timers[plr_idx[0]], Arrays.asList(ChatColor.RED + new String(new char[time_left[0]]).replace("\0", "█")));
                     //int[] ticks_passed = {0};
                     new BukkitRunnable() {
                         @Override public void run() {
@@ -301,12 +414,100 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 }
                 if (slot == 2) { // fj response
                     BookMeta meta2 = (BookMeta)(book.getItemMeta());
-                    String response = meta2.getPage(0);
+                    String response = meta2.getPage(1);
                     int idx = contestants.indexOf(c);
                     final_jeopardy_responses[idx] = response;
                 }
                 host.get_player().getInventory().addItem(book);
                 c.get_player().getInventory().setItem(slot, new ItemStack(Material.AIR));
+                break;
+            }
+        }
+    }
+
+    public void final_jeopardy_timer() {
+        for (Player plr : Bukkit.getOnlinePlayers()) {
+            plr.playSound(plr.getLocation(), "jeopardy.music.think", 1.0F, 1.0F);
+        }
+        set_wall_color("red");
+        new BukkitRunnable() {
+            @Override public void run() {
+                set_wall_color("blue");
+                hide_clue();
+                cancel();
+            }
+        }.runTaskTimer(Jeopardy.getInstance(), 20*30L, 20L);
+    }
+
+    public void set_wall_color(String color) {
+        // pos1: 52 -2 -50
+        // pos2: 1 43 52
+        // //replace blue_terracotta,purple_terracotta,red_terracotta blue_terracotta
+        Bukkit.dispatchCommand(console, "/world world");
+        Bukkit.dispatchCommand(console, "/pos1 52,-2,-50");
+        Bukkit.dispatchCommand(console, "/pos2 1,43,52");
+        Bukkit.dispatchCommand(console, "/replace blue_terracotta,purple_terracotta,red_terracotta " + color + "_terracotta");
+    }
+
+    // set wager (HOST USER-FACING COMMAND)
+    public void set_wager(String name, int wager) {
+        for (JeopardyContestant c : contestants) {
+            if (c.get_player().getName().equalsIgnoreCase(name)) {
+                int idx = contestants.indexOf(c);
+                wagers[idx] = wager;
+                host.get_player().sendMessage(ChatColor.BLUE + "Set " + ChatColor.YELLOW + c.get_player().getName() + ChatColor.BLUE + "'s wager to " + ChatColor.GREEN + "$" + wager);
+                return;
+            }
+        }
+        host.get_player().sendMessage(ChatColor.RED + "Couldn't find that player.");
+    }
+
+    public ArrayList<JeopardyContestant> get_contestants() {
+        return contestants;
+    }
+
+    public void reveal_final_response(String arg) {
+        int idx = Integer.parseInt(arg);
+        Player player = contestants.get(idx).get_player();
+        for (Player plr : Bukkit.getOnlinePlayers()) {
+            plr.sendMessage(ChatColor.YELLOW + player.getName() + ChatColor.BLUE + "'s Response:\n"+ChatColor.RESET + final_jeopardy_responses[idx]);
+        }
+    }
+    public void reveal_final_wager(String arg) {
+        int idx = Integer.parseInt(arg);
+        Player player = contestants.get(idx).get_player();
+        for (Player plr : Bukkit.getOnlinePlayers()) {
+            plr.sendMessage(ChatColor.YELLOW + player.getName() + ChatColor.BLUE + "'s Wager:\n"+ChatColor.RESET + "$" + wagers[idx]);
+        }
+    }
+
+    public void align_players() {
+        ArrayList<Hologram> money_displays = game_board.get_money_displays();
+        for (JeopardyContestant c : contestants) {
+            int idx = contestants.indexOf(c);
+            Location money_loc = money_displays.get(idx).getLocation();
+            Location c_loc =  new Location(game_board.getWorld(), money_loc.getX() + 2, money_loc.getY() + 0, money_loc.getZ() + 0, 90, 0);
+            c.get_player().teleport(c_loc);
+        }
+    }
+
+    public void show_off(String username) {
+        JeopardyContestant contestant = null;
+        for (JeopardyContestant c : contestants) {
+            if (c.get_player().getName().equalsIgnoreCase(username)) {
+                contestant = c;
+                break;
+            }
+        }
+        if (contestant == null) return;
+        Location money_loc = game_board.get_money_displays().get(1).getLocation();
+        contestant.get_player().teleport(new Location(game_board.getWorld(), money_loc.getX() - 3, money_loc.getY(), money_loc.getZ(), -90, 0));
+    }
+
+    public void set_contestant(String idx, String username) {
+        for (Player plr : Bukkit.getOnlinePlayers()) {
+            if (plr.getName().equalsIgnoreCase(username)) {
+                contestants.get(Integer.parseInt(idx)).set_player(plr);
                 break;
             }
         }

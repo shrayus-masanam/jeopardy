@@ -39,7 +39,7 @@ public class JeopardyContestant {
                 if (plr == null) return;
                 Inventory inv = plr.getInventory();
                 if (inv.getItem(0) == null || inv.getItem(0).getType() == Material.AIR || !(inv.getItem(0).getItemMeta().equals(buzzer_meta))) return;
-                int buzz_status = Jeopardy.get_game_manager().can_buzz_in(x[0]);
+                int buzz_status = Jeopardy.getInstance().get_game_manager().can_buzz_in(x[0]);
                 ItemStack to_set = null;
                 switch (buzz_status) {
                     case 0:

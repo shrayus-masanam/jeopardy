@@ -292,7 +292,7 @@ public class GameBoard {
         DHAPI.setHologramLines(contestant_category_display, split_to_lines(text, "&n", ""));
         if (!text.isEmpty()) {
             for (Hologram bg : contestant_clue_display_bgs) {
-                DHAPI.setHologramLines(bg, Arrays.asList("<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>"));
+                DHAPI.setHologramLines(bg, Arrays.asList("<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>", "<#000073>█████████████████████</#000073>"));
             }
         } else {
             for (Hologram bg : contestant_clue_display_bgs) {
@@ -316,5 +316,9 @@ public class GameBoard {
 
     public World getWorld() {
         return board_world;
+    }
+
+    public ArrayList<Hologram> get_money_displays() {
+        return money_displays;
     }
 }

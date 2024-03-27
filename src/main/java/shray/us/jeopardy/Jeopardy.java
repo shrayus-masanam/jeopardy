@@ -15,10 +15,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDropItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerEditBookEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -35,7 +35,7 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 	//public String getDataFolder() { return this.instance.getDataFolder().getAbsolutePath().toString(); }
 
 	static JeopardyGameManager game;
-	public static JeopardyGameManager get_game_manager() {
+	public JeopardyGameManager get_game_manager() {
 		return game;
 	}
 
@@ -79,7 +79,11 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 			game.init();
 		}
 		else if (args[0].equalsIgnoreCase("start")) {
-			game.start();
+			if (args[1].equalsIgnoreCase("intro"))
+				game.start(true);
+			else
+				game.start(false);
+
 			sender.sendMessage(ChatColor.GREEN + "Jepoardy has started.");
 		}
 		else if (args[0].equalsIgnoreCase("load")) {
@@ -101,18 +105,47 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 				}
 			} else if (args[1].equals("finishread") || args[1].equalsIgnoreCase("unfinishread")) {
 				game.set_finished_reading(args[1].equalsIgnoreCase("finishread"));
+			} else if (args[1].equalsIgnoreCase("unbuzz")) {
+				game.dismiss_buzzed_in();
 			} else if (args[1].equalsIgnoreCase("correct") || args[1].equalsIgnoreCase("incorrect")) {
 				if (args.length < 3) { // args[2] DNE
 					sender.sendMessage(ChatColor.RED + "You must specify a player index!");
 					return false;
 				}
-				game.change_contestant_money(Integer.parseInt(args[2]), args[1].equalsIgnoreCase("correct"));
+				game.declare_correctness(Integer.parseInt(args[2]), args[1].equalsIgnoreCase("correct"));
+			} else if (args[1].equalsIgnoreCase("addmoney")) {
+				game.change_contestent_money(args[2], Integer.parseInt(args[3]));
 			} else if (args[1].equalsIgnoreCase("timesup")) {
 				game.clue_timed_out();
-			} else if (args[1].equalsIgnoreCase("givewager")) {
+			} else if (args[1].equalsIgnoreCase("wager") || args[1].equalsIgnoreCase("setwager")) { // refers to host setting contestant contestant wagers
+				game.set_wager(args[2], Integer.parseInt(args[3]));
+			} else if (args[1].equalsIgnoreCase("givewager")) { // referring to gving final jeopardy wager book
 				game.give_book(args[2], "Wager", 1);
 			} else if (args[1].equalsIgnoreCase("giveresponse")) {
 				game.give_book(args[2], "Final Jeopardy Response", 2);
+			} else if (args[1].equalsIgnoreCase("takewager")) {
+				game.take_book(args[2], 1);
+			} else if (args[1].equalsIgnoreCase("takeresponse")) {
+				game.take_book(args[2], 2);
+			} else if (args[1].equalsIgnoreCase("finaltimer")) {
+				game.final_jeopardy_timer();
+			} else if (args[1].equalsIgnoreCase("finalreveal")) {
+				if (args.length > 3) {
+					game.reveal_final_wager(args[2]);
+				} else {
+					game.reveal_final_response(args[2]);
+				}
+			} else if (args[1].equalsIgnoreCase("align")) {
+				game.align_players();
+			} else if (args[1].equalsIgnoreCase("showoff")) {
+				game.align_players();
+				game.show_off(args[2]);
+			} else if (args[1].equalsIgnoreCase("setplayer")) {
+				if (args.length < 4) {
+					sender.sendMessage(ChatColor.RED + "Usage: /jeopardy host setplayer <index> <username>");
+					return false;
+				}
+				game.set_contestant(args[2], args[3]);
 			}
 		} else if (args[0].equalsIgnoreCase("contestant")) {
 			// contestant commands
@@ -128,9 +161,16 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 	public void onPlayerUse(PlayerInteractEvent event){
 		Player player = event.getPlayer();
 		ItemStack item = player.getInventory().getItemInMainHand();
+		ItemMeta item_meta = item.getItemMeta();
+		if (item_meta == null) {
+			if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock().getBlockData().getMaterial() == Material.LECTERN)
+				event.setCancelled(true); // dont let players use lecterns to hold books
+
+			return;
+		}
 		if (item.getType() == Material.PLAYER_HEAD) {
-			if (item.getItemMeta().getLore() != null && item.getItemMeta().getLore().get(2) != null) {
-				String loreline = item.getItemMeta().getLore().get(2);
+			if (item_meta.getLore() != null && item_meta.getLore().get(2) != null) {
+				String loreline = item_meta.getLore().get(2);
 				if (loreline.split(" - ")[0].equalsIgnoreCase("Player index")) {
 					String giveortake = "";
 					Action eaction = event.getAction();
@@ -144,15 +184,15 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 			}
 		}
 		if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-			if (item.getItemMeta().getDisplayName().equals("Buzzer")) {
+			if (item_meta.getDisplayName().equals("Buzzer")) {
 				String[] args = {"contestant", "buzzin"};
 				command_handler(player, args);
-			} else if (item.getItemMeta().getDisplayName().contains("Host Menu")) {
+			} else if (item_meta.getDisplayName().contains("Host Menu")) {
 				String[] args = {"host", "menu"};
 				command_handler(player, args);
 			}
 		} else if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK) {
-			if (item.getItemMeta().getDisplayName().contains("Host Menu")) {
+			if (item_meta.getDisplayName().contains("Host Menu")) {
 				String[] args = {"host", "finishread"};
 				command_handler(player, args);
 			}
@@ -161,8 +201,14 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 
 	@EventHandler
 	public void invClickEvent(InventoryClickEvent event) {
-		if (event.getCurrentItem().getItemMeta().getDisplayName().equals("Buzzer")) {
-			event.setCancelled(true);
+		ItemStack item  = event.getCurrentItem();
+		if (item == null) return;
+		ItemMeta meta = item.getItemMeta();
+		if (meta != null) {
+			if (meta.getDisplayName().equals("Buzzer"))
+				event.setCancelled(true);
+			if (meta.getDisplayName().contains("Final Jeopardy"))
+				event.setCancelled(true);
 		}
 		if (event.getView().getTitle().contains("Jeopardy!")) {
 			event.setCancelled(true);
@@ -171,11 +217,11 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 	}
 
 	@EventHandler
-	public void itemDropEvent(EntityDropItemEvent event) {
+	public void itemDropEvent(PlayerDropItemEvent event) {
 		ItemStack item = event.getItemDrop().getItemStack();
 		if (
 				item.getType() == Material.PAPER ||
-				item.getItemMeta().getDisplayName().equalsIgnoreCase("buzzer") ||
+				(item.getItemMeta() != null && item.getItemMeta().getDisplayName().equalsIgnoreCase("buzzer")) ||
 				item.getType() == Material.WRITABLE_BOOK ||
 				item.getType() == Material.WRITTEN_BOOK ||
 				item.getType() == Material.PLAYER_HEAD
@@ -191,5 +237,10 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 			meta.setDisplayName(event.getPreviousBookMeta().getDisplayName()); // don't let them change the name
 			event.setNewBookMeta(meta);
 		}
+	}
+
+	@EventHandler
+	public void recipeEvent(PlayerRecipeDiscoverEvent event) {
+		event.setCancelled(true);
 	}
 }
