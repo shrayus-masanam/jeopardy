@@ -1,11 +1,16 @@
 package shray.us.jeopardy;
 
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import com.google.gson.Gson;
@@ -65,6 +70,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         game_board = new GameBoard(sender.getWorld(), 12, 13, 6, 12, 7, -4); // hardcoded
         host = new JeopardyHost(Bukkit.getPlayerExact(args[2]), game);
         host.get_player().getInventory().clear();
+        host.get_player().setGameMode(GameMode.ADVENTURE);
         host.give_host_menu();
         host.get_player().addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, 999999, 255, true, false));
         contestants = new ArrayList<JeopardyContestant>();
@@ -75,6 +81,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 return;
             }
             contestant.getInventory().clear();
+            contestant.setGameMode(GameMode.ADVENTURE);
             contestant.addPotionEffect(new PotionEffect(PotionEffectType.SATURATION, 999999, 255, true, false));
 
             int j = i - 3;
@@ -249,6 +256,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     public void hide_clue() {
         game_board.set_contestant_cat_holo("");
         game_board.set_contestant_clue_holo("");
+        try {
+            autosave();
+        } catch (Exception e) {}
     }
 
     // change their money based on the correctness of their response
@@ -318,8 +328,10 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
-    public void set_finished_reading(boolean val) {
-        finished_reading = val;
+    public void set_finished_reading() {
+        finished_reading = !finished_reading;
+        if (!finished_reading)
+            host.get_player().sendMessage(ChatColor.BLUE + "Responding is now " + ChatColor.RED + "disabled");
     }
 
     public int can_buzz_in(JeopardyContestant contestant) {
@@ -465,6 +477,7 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     public ArrayList<JeopardyContestant> get_contestants() {
         return contestants;
     }
+    public JeopardyHost get_host() { return host; }
 
     public void reveal_final_response(String arg) {
         int idx = Integer.parseInt(arg);
@@ -511,5 +524,57 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
                 break;
             }
         }
+    }
+
+    private void autosave() {
+        String save_string = current_round + "," + host.get_player().getName() + ",";
+        for (int i = 0; i < contestants.size(); i++) {
+            save_string += contestants.get(i).get_player().getName() + "," + contestants.get(i).get_money() + ",";
+        }
+        Map<String, JeopardyCategory> cats = game.get_categories(current_round);
+        for (int i = 0; i < cats.size(); i++) {
+            for (int j = 1; j <= 5; j++) {
+                save_string += cats.get(String.valueOf(i)).get_clue(String.valueOf(j * 200 * (current_round.equalsIgnoreCase("double") ? 2 : 1))).revealed + ",";
+            }
+        }
+        try (FileWriter myWriter = new FileWriter(Paths.get(Jeopardy.getInstance().getDataFolder().toString(), "autosaves", "latest.txt").toString())) {
+            myWriter.write(save_string);
+            myWriter.close();
+        } catch (IOException e) {
+            logger.info(e.toString());
+        }
+    }
+
+    public void load_autosave() {
+        String val = "";
+        try {
+            val = new String(Files.readAllBytes(Paths.get(Jeopardy.getInstance().getDataFolder().toString(), "autosaves", "latest.txt")), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            logger.info(e.toString());
+        }
+        String[] vals = val.split(",");
+        start(false);
+        load(vals[0]);
+        new BukkitRunnable() {
+            @Override public void run() {
+                host.set_player(Bukkit.getPlayerExact(vals[1]));
+                contestants.get(0).set_player(Bukkit.getPlayerExact(vals[2]));
+                contestants.get(0).set_money(Integer.parseInt(vals[3]));
+                contestants.get(1).set_player(Bukkit.getPlayerExact(vals[4]));
+                contestants.get(1).set_money(Integer.parseInt(vals[5]));
+                contestants.get(2).set_player(Bukkit.getPlayerExact(vals[6]));
+                contestants.get(2).set_money(Integer.parseInt(vals[7]));
+                align_players();
+                for (int i = 8; i < 38; i++) {
+                    reveal_category(String.valueOf((i - 8) / 5));
+                    if (Boolean.parseBoolean(vals[i])) { // revealed or not
+                        reveal_clue(String.valueOf((i - 8) / 5), String.valueOf(((i - 8) % 5 + 1) * 200 * (vals[0].equalsIgnoreCase("double") ? 2 : 1)));
+                        reveal_clue(String.valueOf((i - 8) / 5), String.valueOf(((i - 8) % 5 + 1) * 200 * (vals[0].equalsIgnoreCase("double") ? 2 : 1))); // do it twice in case it's a daily double
+                    }
+                }
+                clue_timed_out();
+                cancel();
+            }
+        }.runTaskTimer(Jeopardy.getInstance(), 5 * 20L, 20*9999L);
     }
 }

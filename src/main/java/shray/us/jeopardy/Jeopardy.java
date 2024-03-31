@@ -46,8 +46,12 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 				this.getDataFolder().mkdir();
 			}
 			File games_dir = new File(this.getDataFolder(), "games");
-			if (!games_dir.exists()) {
+			if (!(games_dir.exists())) {
 				games_dir.mkdir();
+			}
+			File as_dir = new File(this.getDataFolder(), "autosaves");
+			if (!(as_dir.exists())) {
+				as_dir.mkdir();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -73,24 +77,23 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 			out += word + " ";
 		}
 		LOGGER.info(out);
-
-		if (args[0].equalsIgnoreCase("create")) {
-			game = new JeopardyGameManager(sender, args);
-			game.init();
+		if (sender.isOp()) {
+			if (args[0].equalsIgnoreCase("create")) {
+				game = new JeopardyGameManager(sender, args);
+				game.init();
+			} else if (args[0].equalsIgnoreCase("start")) {
+				if (args.length >= 2 && args[1].equalsIgnoreCase("intro"))
+					game.start(true);
+				else
+					game.start(false);
+				sender.sendMessage(ChatColor.GREEN + "Jepoardy has started.");
+			} else if (args[0].equalsIgnoreCase("load")) {
+				game.load(args[1] == null ? "single" : args[1]);
+			}
 		}
-		else if (args[0].equalsIgnoreCase("start")) {
-			if (args[1].equalsIgnoreCase("intro"))
-				game.start(true);
-			else
-				game.start(false);
-
-			sender.sendMessage(ChatColor.GREEN + "Jepoardy has started.");
-		}
-		else if (args[0].equalsIgnoreCase("load")) {
-			game.load(args[1] == null ? "single" : args[1]);
-		}
-		else if (args[0].equalsIgnoreCase("host")) {
+		if (args[0].equalsIgnoreCase("host")) {
 			// host commands
+			if (!(sender.getName().equalsIgnoreCase(game.get_host().get_player().getName()))) return false;
 			if (args[1].equalsIgnoreCase("menu")) {
 				game.host_open_menu();
 			} else if (args[1].equalsIgnoreCase("reveal")) {
@@ -103,8 +106,8 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 				} else { // revealing a clue in a category
 					game.reveal_clue(args[2], args[3]);
 				}
-			} else if (args[1].equals("finishread") || args[1].equalsIgnoreCase("unfinishread")) {
-				game.set_finished_reading(args[1].equalsIgnoreCase("finishread"));
+			} else if (args[1].equals("finishread")) {
+				game.set_finished_reading();
 			} else if (args[1].equalsIgnoreCase("unbuzz")) {
 				game.dismiss_buzzed_in();
 			} else if (args[1].equalsIgnoreCase("correct") || args[1].equalsIgnoreCase("incorrect")) {
@@ -146,6 +149,8 @@ public class Jeopardy extends JavaPlugin implements CommandExecutor, Listener {
 					return false;
 				}
 				game.set_contestant(args[2], args[3]);
+			} else if (args[1].equalsIgnoreCase("loadautosave")) {
+				game.load_autosave();
 			}
 		} else if (args[0].equalsIgnoreCase("contestant")) {
 			// contestant commands
