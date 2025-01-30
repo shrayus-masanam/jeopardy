@@ -2,8 +2,13 @@ name: 'Jeopardy'
 main: shray.us.jeopardy.Jeopardy
 version: 1.0
 api-version: 1.20
-softdepend:
+depend:
   - DecentHolograms
+softdepend:
+  - ForcePack
+  - WorldEdit
+  - WorldGuard
+  - CinematicStudio
 commands:
    jeopardy:
       description: Jeopardy commands
