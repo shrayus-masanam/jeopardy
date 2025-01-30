@@ -17,6 +17,13 @@ public class MapImage extends MapRenderer {
     private BufferedImage image;
     private boolean rendered;
 
+    /*
+     * Loads an image from the given file name and divides it into portions
+     * 
+     * @param file_name the name of the file to load the image from.
+     * @param portions the number of portions to divide the image into.
+     * @param index the index of the portions to use.
+     */
     public MapImage(String file_name, int portions, int index) {
         try {
             BufferedImage wide_image;

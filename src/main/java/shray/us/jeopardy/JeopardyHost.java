@@ -30,6 +30,9 @@ public class JeopardyHost {
         player = p;
     }
 
+    /*
+     * Gives the host menu to the player.
+     */
     public void give_host_menu() {
         ItemStack menu = new ItemStack(Material.PAPER);
         ItemMeta meta = menu.getItemMeta();
@@ -39,6 +42,11 @@ public class JeopardyHost {
         player.getInventory().setItem(0, menu);
     }
 
+    /*
+     * Opens the host menu for a given round
+     * 
+     * @param round the round to open the menu for.
+     */
     public void open_menu(String round) {
         Inventory menu = Bukkit.createInventory((InventoryHolder)player, 54, round.substring(0, 1).toUpperCase() + round.substring(1) + " Jeopardy!");
         ItemStack[] items = new ItemStack[54];

@@ -13,7 +13,6 @@ import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapView;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class GameBoard {
@@ -31,6 +30,17 @@ public class GameBoard {
 
     Logger logger = Logger.getLogger("Jeopardy");
 
+    /*
+     * Creates a new game board with the given world and coordinates
+     * 
+     * @param world The world the board is in
+     * @param x The x coordinate of the top left corner of the board
+     * @param y The y coordinate of the top left corner of the board
+     * @param z The z coordinate of the top left corner of the board
+     * @param x2 The x coordinate of the bottom right corner of the board
+     * @param y2 The y coordinate of the bottom right corner of the board
+     * @param z2 The z coordinate of the bottom right corner of the board
+     */
     public GameBoard(World world, int x, int y, int z, int x2, int y2, int z2) {
 
         top_left = new Location(world, x, y, z);
@@ -79,25 +89,8 @@ public class GameBoard {
             int zOff = (int)(top_left.getZ()) - (int)(entity.getLocation().getZ() - 0.5);
             int yOff = (int)(top_left.getY()) - (int)(entity.getLocation().getY() - 0.5);
             if (zOff < 0 || yOff < 0 || zOff >= board_frames[0].length || yOff >= board_frames.length) continue;
-            //logger.info("Found a frame at " + zOff + ", " + yOff + " (" + entity.getLocation().getZ() + ", " + entity.getLocation().getY() + ")");
-            //logger.info("zOff: " + zOff + ", yOff: " + yOff);
             ItemFrame frame = (ItemFrame)entity;
-            if (frame == null) {
-                //logger.info("Warning: this frame is null.");
-                continue;
-            }
             board_frames[yOff][zOff] = frame;
-            /*String msg = "\n";
-            for (int i = 0; i < board_frames.length; i++) {
-                for (int j = 0; j < board_frames[i].length; j++) {
-                    if (board_frames[i][j] != null)
-                        msg += "X ";
-                    else
-                        msg += "O ";
-                }
-                msg += "\n";
-            }
-            logger.info(msg);*/
         }
         // create contestant money displays
         for (int i = 0; i < 3; i++) {
@@ -184,7 +177,10 @@ public class GameBoard {
         return list;
     }
 
-    // board is powered off at the beginning of the game
+    /*
+     * Sets all item frames on the board to a black tile to indicate the board is off 
+     * (used at the beginning of the game)
+     */
     public void black_out() {
         for (ItemFrame[] boardFrame : board_frames) {
             for (ItemFrame itemFrame : boardFrame) {
@@ -194,7 +190,9 @@ public class GameBoard {
         }
     }
     
-    // power on the board to blank blue tiles
+    /*
+     * Sets all item frames on the board to a blank blue tile to indicate the board is on
+     */
     public void power_on() {
         for (ItemFrame[] boardFrame : board_frames) {
             for (ItemFrame itemFrame : boardFrame) {
@@ -225,6 +223,11 @@ public class GameBoard {
         }
     }
 
+    /*
+     * Plays the fill board animation
+     * 
+     * @param round_name The name of the round being played
+     */
     public void fill_board(String round_name) {
 
         logger.info(Jeopardy.getInstance().getDataFolder().getAbsolutePath());
@@ -277,17 +280,34 @@ public class GameBoard {
         }.runTaskTimer(Jeopardy.getInstance(), 0L, 7L);
     }
 
+    /*
+     * Sets the tile at the given category and clue index to the given tile name
+     * 
+     * @param cat_idx The index of the category
+     * @param clue_idx The index of the clue
+     * @param tile_name The name of the tile to set
+     */
     public void set_tile(int cat_idx, int clue_idx, String tile_name) {
         board_frames[clue_idx][cat_idx * 2].setItem(tiles.get(tile_name + "0").clone());
         board_frames[clue_idx][cat_idx * 2 + 1].setItem(tiles.get(tile_name + "1").clone());
     }
 
-    // set the text of a category hologram
+    /*
+     * Sets the text of the category hologram at the given index
+     * 
+     * @param idx The index of the category
+     * @param text The text to set
+     */
     public void set_cat_holo(String idx, String text) {
         List<String> lines = Arrays.asList(text);
         DHAPI.setHologramLines(categories.get(Integer.parseInt(idx)), lines);
     }
 
+    /*
+     * Sets the text of the category hologram that the contestants see in the center of the stage
+     * 
+     * @param text The text to set
+     */
     public void set_contestant_cat_holo(String text) {
         DHAPI.setHologramLines(contestant_category_display, split_to_lines(text, "&n", ""));
         if (!text.isEmpty()) {
@@ -301,6 +321,11 @@ public class GameBoard {
         }
     }
 
+    /*
+     * Sets the text of the clue hologram that the contestants see in the center of the stage
+     * 
+     * @param text The text to set
+     */
     public void set_contestant_clue_holo(String text) {
         DHAPI.setHologramLines(contestant_clue_display, split_to_lines(text));
         //DHAPI.setHologramLines(contestant_clue_display_bg, Arrays.asList("<#000073>███████████████</#000073>", "<#000073>███████████████</#000073>", "<#000073>███████████████</#000073>", "<#000073>███████████████</#000073>", "<#000073>███████████████</#000073>", "<#000073>███████████████</#000073>"));
@@ -309,15 +334,31 @@ public class GameBoard {
 
     }
 
+    /*
+     * Sets the text of the contestant money display hologram at the given index
+     * 
+     * @param idx The index of the money display, 0-2, corresponding to the contestants
+     * @param text The text to set
+     */
     public void set_money_display(int idx, String text) {
         DHAPI.setHologramLines(money_displays.get(idx), split_to_lines(text));
     }
 
 
+    /*
+     * Gets the world that the game board is in
+     * 
+     * @return The world that the board is in
+     */
     public World getWorld() {
         return board_world;
     }
 
+    /*
+     * Returns a list of all the contestant money display holograms, in order of contestant 1, 2, 3 (0-indexed)
+     * 
+     * @return A list of all the contestant money display holograms
+     */
     public ArrayList<Hologram> get_money_displays() {
         return money_displays;
     }

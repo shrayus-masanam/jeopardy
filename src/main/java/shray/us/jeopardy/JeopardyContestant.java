@@ -60,31 +60,65 @@ public class JeopardyContestant {
     }
     public JeopardyContestant() {} // for dummy objects
 
+    /*
+     * Returns the player associated with this contestant.
+     * 
+     * @return the player associated with this contestant.
+     */
     public Player get_player() {
         return player;
     }
+    /*
+     * Sets the player associated with this contestant.
+     * 
+     * @param p the player to associate with this contestant.
+     */
     public void set_player(Player p) {
         player = p;
     }
+    /*
+     * Returns the amount of money this contestant has.
+     * 
+     * @return the amount of money this contestant has.
+     */
     public int get_money() {
         return money;
     }
+    /*
+     * Sets the amount of money this contestant has.
+     * 
+     * @param amount the amount of money to set this contestant's money to.
+     */
     public void set_money(int amount) {
         money = amount;
     }
+    /*
+     * Adds the given amount of money to this contestant's total.
+     * 
+     * @param addend the amount of money to add to this contestant's total.
+     */
     public void add_money(int addend) {
         money += addend;
     }
+    /*
+     * Subtracts the given amount of money from this contestant's total.
+     * 
+     * @param subtrahend the amount of money to subtract from this contestant's total.
+     */
     public void subtract_money(int subtrahend) {
         money -= subtrahend;
     }
-
+    /*
+     * Gives the contestant a buzzer.
+     */
     public void give_buzzer() {
         ItemStack buzzer = new ItemStack(Material.GRAY_DYE, 1);
         buzzer.setItemMeta(buzzer_meta);
         player.getInventory().setItem(0, buzzer);
     }
-
+    /*
+     * Removes the buzzer from the contestant's inventory.
+     */
     public void remove_buzzer() {
         for (ItemStack i : player.getInventory()) {
             if (i.getItemMeta().getDisplayName().equals(buzzer_meta.getDisplayName())) {

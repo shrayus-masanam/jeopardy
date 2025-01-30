@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -26,7 +25,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.checkerframework.checker.units.qual.A;
 
 public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     private JeopardyHost host;
@@ -46,12 +44,19 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
     private Logger logger = Logger.getLogger("Jeopardy");
 
+    /*
+     * Creates a new game manager
+     * 
+     * @param sender the player who sent the command
+     * 
+     * @param args the arguments passed with the command
+     *  args[1]: game file name (without extension)
+     *  args[2]: host name
+     *  args[3]: contestant #1 name
+     *  args[4]: contestant #2 name
+     *  args[5]: contestant #3 name
+     */
     public JeopardyGameManager(Player sender, String[] args) {
-        // args[1]: game file name (without extension)
-        // args[2]: host name
-        // args[3]: contestant #1 name
-        // args[4]: contestant #2 name
-        // args[5]: contestant #3 name
         if (args.length < 3) {
             sender.sendMessage(ChatColor.RED + "Jepoardy requires 1 host and 2-3 contestants.\nUsage: /jeopardy create <game name> <host> <contestant 1> <contestant 2> ...");
             return;
@@ -59,9 +64,6 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         Gson gson = new Gson();
         try (Reader reader = new FileReader(Paths.get(Jeopardy.getInstance().getDataFolder().toString(), "games", args[1] + ".json").toString())) {
             game = gson.fromJson(reader, JeopardyGame.class); // converting json file to object
-
-            // Now you can use the 'game' object however you need
-            //logger.info(game.get_categories(round_name).get("0").get_name()); // For example
 
         } catch (Exception e) {
             logger.info(e.toString());
@@ -106,13 +108,25 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         sender.sendMessage(ChatColor.GREEN + "Created a game with host " + ChatColor.YELLOW + host.get_player().getName() + ChatColor.GREEN + ". Use " + ChatColor.RESET + "/jeopardy start intro" + ChatColor.GREEN + " to begin!");
     }
 
+    /*
+     * Initializes the game board
+     */
     public void init() {
         game_board.black_out();
     }
 
+    /*
+     * Starts the game without the intro cutscene
+     */
     public void start() {
         start(false);
     }
+    /*
+     * Starts the game with or without the intro cutscene
+     * This also sets up the contestant money displays to automatically update
+     * 
+     * @param intro whether or not to play the intro cutscene
+     */
     public void start(boolean intro) {
         started = true;
         game_board.power_on();
@@ -161,6 +175,11 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             }
         }.runTaskTimer(Jeopardy.getInstance(), 0L, 20L);
     }
+    /*
+     * Loads the game board with the given round and sets the wall color
+     * 
+     * @param round_name the name of the round to load
+     */
     public void load(String round_name) {
         if (round_name.equalsIgnoreCase("final") || round_name.equalsIgnoreCase("tiebreaker"))
             game_board.power_on(); // to clear the tiles
@@ -172,6 +191,11 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             set_wall_color("purple");
     }
 
+    /*
+     * Reveals a single category on the board (used by host reading them out loud)
+     * 
+     * @param idx the index of the category to reveal
+     */
     public void reveal_category(String idx) {
         if (current_round.equalsIgnoreCase("single") || current_round.equalsIgnoreCase("double")) {
             game_board.set_cat_holo(idx, game.get_categories(current_round).get(idx).get_name());
@@ -180,6 +204,13 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Reveals a single clue on the board (used by host when contestant requests a clue)
+     * If the clue is a Daily Double, the host will need to set the contestant's wager
+     * 
+     * @param cat_idx the index of the category to reveal
+     * @param clue_idx the index of the clue to reveal
+     */
     public void reveal_clue(String cat_idx, String clue_idx) { // wager is only used for daily double
         JeopardyClue clue = game.get_clue(current_round, cat_idx, clue_idx);
         // first set everything
@@ -253,6 +284,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         host.get_player().sendMessage(ChatColor.BLUE + "[Clue]: " + ChatColor.RESET + clue.toString() + ChatColor.RED + "\n[Response]: " + ChatColor.RESET + clue.get_acceptable_responses());
     }
 
+    /*
+     * Removes the current clue from contestants' view
+     */
     public void hide_clue() {
         game_board.set_contestant_cat_holo("");
         game_board.set_contestant_clue_holo("");
@@ -261,7 +295,13 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         } catch (Exception e) {}
     }
 
-    // change their money based on the correctness of their response
+    /*
+     * Changes the money of a contestant based on the correctness of their response
+     * If correct, add money. If incorrect, subtract money.
+     * 
+     * @param idx the index of the contestant to change the money of
+     * @param correct whether or not the response was correct
+     */
     public void declare_correctness(int idx, boolean correct) {
         if (!started) {  // use player heads as showoff instead during the intro
             if (!correct) {
@@ -297,7 +337,13 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             accepting_responses[2] = true;
         }
     }
-    // change their money by a value (pos or neg) (HOST USER-FACING COMMAND)
+
+    /*
+     * Changes the money of a contestant by the given amount (HOST USER-FACING COMMAND)
+     * 
+     * @param name the name of the contestant to change the money of
+     * @param change the amount of money to change by
+     */
     public void change_contestent_money(String name, int change) {
         for (JeopardyContestant c : contestants) {
             if (c.get_player().getName().equalsIgnoreCase(name)) {
@@ -310,11 +356,18 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             }
         }
     }
-    // unbuzz a player. maybe buzzed in when they shouldn't be able to
+
+    /*
+     * Dismisses the current contestant who buzzed in. Typically used when the player is not supposed
+     * to be buzzed in for some reason
+     */
     public void dismiss_buzzed_in() {
         buzzed_in = null;
     }
-    // nobody answered in time
+
+    /*
+     * Times out a clue if nobody can provide an answer in time
+     */
     public void clue_timed_out() {
         buzzed_in = null;
         hide_clue();
@@ -328,12 +381,24 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Mark the clue as fiinished being read by the host, and allows contestants to buzz in
+     */
     public void set_finished_reading() {
         finished_reading = !finished_reading;
         if (!finished_reading)
             host.get_player().sendMessage(ChatColor.BLUE + "Responding is now " + ChatColor.RED + "disabled");
     }
 
+    /*
+     * Determines if a player can buzz in for the current clue
+     * 0 means they cannot buzz in because someone else has, or they are not allowed to respond anymore
+     * 1 means they cannot buzz in because the clue has not been read yet
+     * 2 means they can buzz in
+     * 
+     * @param contestant the contestant to check
+     * @return an integer representing the status of the contestant's ability to buzz in
+     */
     public int can_buzz_in(JeopardyContestant contestant) {
         if (buzzed_in != null || !accepting_responses[contestants.indexOf(contestant)]) {
             return 0;
@@ -344,6 +409,11 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Buzzes in a player if they are allowed to
+     * 
+     * @param sender the player who buzzed in
+     */
     public void buzz_in(Player sender) {
         for (int i = 0; i < contestants.size(); i++) {
             JeopardyContestant contestant = contestants.get(i);
@@ -386,12 +456,22 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         };
     }
 
+    /*
+     * Opens the host menu for the host
+     */
     public void host_open_menu() {
         host.open_menu(current_round);
     }
 
     public void host_click_menu(InventoryClickEvent event) {host.click_menu_item(event);}
 
+    /*
+     * Gives contestants a book with a name and inventory slot. Used for Final Jeopardy wagering and responses.
+     * 
+     * @param player_name the name of the player to give the book to
+     * @param book_name the name of the book
+     * @param slot the slot in the player's inventory to place the book
+     */
     public void give_book(String player_name, String book_name, int slot) {
         if (player_name.equalsIgnoreCase("*")) {
             for (JeopardyContestant c : contestants) {
@@ -410,6 +490,13 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             }
         }
     }
+
+    /*
+     * Takes a book from a player and gives it to the host
+     * 
+     * @param player_name the name of the player to take the book from
+     * @param slot the slot in the player's inventory to take the book from
+     */
     public void take_book(String player_name, int slot) {
         if (player_name.equalsIgnoreCase("*")) {
             for (JeopardyContestant c : contestants) {
@@ -437,6 +524,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Starts the Final Jeopardy round
+     */
     public void final_jeopardy_timer() {
         for (Player plr : Bukkit.getOnlinePlayers()) {
             plr.playSound(plr.getLocation(), "jeopardy.music.think", 1.0F, 1.0F);
@@ -451,6 +541,11 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }.runTaskTimer(Jeopardy.getInstance(), 20*30L, 20L);
     }
 
+    /*
+     * Sets the color of the wall to the given color
+     * 
+     * @param color the color to set the wall to
+     */
     public void set_wall_color(String color) {
         // pos1: 52 -2 -50
         // pos2: 1 43 52
@@ -461,7 +556,12 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         Bukkit.dispatchCommand(console, "/replace blue_terracotta,purple_terracotta,red_terracotta " + color + "_terracotta");
     }
 
-    // set wager (HOST USER-FACING COMMAND)
+    /*
+     * Sets the wager of a contestant for Final Jeopardy (HOST USER-FACING COMMAND)
+     * 
+     * @param name the name of the contestant to set the wager for
+     * @param wager the amount of money to wager
+     */
     public void set_wager(String name, int wager) {
         for (JeopardyContestant c : contestants) {
             if (c.get_player().getName().equalsIgnoreCase(name)) {
@@ -479,6 +579,11 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
     }
     public JeopardyHost get_host() { return host; }
 
+    /*
+     * Reveals the Final Jeopardy response of a contestant to all players
+     * 
+     * @param arg the index of the contestant to reveal the response of
+     */
     public void reveal_final_response(String arg) {
         int idx = Integer.parseInt(arg);
         Player player = contestants.get(idx).get_player();
@@ -486,6 +591,12 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
             plr.sendMessage(ChatColor.YELLOW + player.getName() + ChatColor.BLUE + "'s Response:\n"+ChatColor.RESET + final_jeopardy_responses[idx]);
         }
     }
+    
+    /*
+     * Reveals the Final Jeopardy wager of a contestant to all players
+     * 
+     * @param arg the index of the contestant to reveal the wager of
+     */
     public void reveal_final_wager(String arg) {
         int idx = Integer.parseInt(arg);
         Player player = contestants.get(idx).get_player();
@@ -494,6 +605,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Aligns all contestants to their lecterns
+     */
     public void align_players() {
         ArrayList<Hologram> money_displays = game_board.get_money_displays();
         for (JeopardyContestant c : contestants) {
@@ -504,6 +618,11 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Brings a player to the center of the stage. Used to introduce players during the intro cutscene
+     * 
+     * @param username the username of the player to show off
+     */
     public void show_off(String username) {
         JeopardyContestant contestant = null;
         for (JeopardyContestant c : contestants) {
@@ -517,6 +636,12 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         contestant.get_player().teleport(new Location(game_board.getWorld(), money_loc.getX() - 3, money_loc.getY(), money_loc.getZ(), -90, 0));
     }
 
+    /*
+     * Sets the contestant for a given index to the given username
+     * 
+     * @param idx the index of the contestant to set
+     * @param username the username of the player to set as the contestant
+     */
     public void set_contestant(String idx, String username) {
         for (Player plr : Bukkit.getOnlinePlayers()) {
             if (plr.getName().equalsIgnoreCase(username)) {
@@ -526,6 +651,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Saves the current game state to a file
+     */
     private void autosave() {
         String save_string = current_round + "," + host.get_player().getName() + ",";
         for (int i = 0; i < contestants.size(); i++) {
@@ -545,6 +673,9 @@ public class JeopardyGameManager { // 12 13 6 - // 12 7 -4
         }
     }
 
+    /*
+     * Loads the latest autosave
+     */
     public void load_autosave() {
         String val = "";
         try {
