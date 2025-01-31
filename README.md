@@ -21,19 +21,19 @@ https://github.com/user-attachments/assets/bcf2ed4d-6b2a-44b3-b65d-d50a5eb1a7e2
 </details>
 
 ## Setup
-This plugin is intended for use with <a href="https://github.com/shrayus-masanam/jeopardy/releases/tag/resources">this world & resource pack</a> on a Spigot/Paper 1.20.4 server. DecentHolograms is the only requirement for the plugin to work, but the rest of the plugins are recommended for nice cosmetic effects. If you use the provided world file, you can use the included config files to easily set up all the plugins.
+This plugin is intended for use with <a href="https://github.com/shrayus-masanam/jeopardy/releases/tag/resources">this world & resource pack</a> on a Spigot/Paper 1.20.4 server. DecentHolograms is the only requirement for the plugin to work, but the rest of the plugins are recommended for nice cosmetic effects. If you use the provided world file, you can use the included plugin config files to easily set up all the plugins.
 
 ### Required Dependencies
 - DecentHolograms (2.8.6+)
 ### Optional (Recommended) Dependencies
 - ForcePack (1.3.3+)
-  - Used to force the required resource pack. Pre-made config file <a href="">here</a>.
+  - Used to force the required resource pack.
 - WorldEdit (7.2.15+)
   - Used to change the color of the walls based on the game round. Config not needed.
 - WorldGuard (7.0.9+)
-  - Used to protect the world from modification. Pre-made config file <a href="">here</a>.
+  - Used to protect the world from modification.
 - CinematicStudio (1.4.6+)
-  - Used to play a custom intro cutscene. Pre-made cutscene file <a href="">here</a>.
+  - Used to play a custom intro cutscene.
   - This is a paid plugin.
 
 ## Usage
